@@ -11,10 +11,6 @@ function parseTextResult(result) {
   return JSON.parse(textPart.text)
 }
 
-function isToolError(result) {
-  return result?.isError === true
-}
-
 async function main() {
   const client = new Client({
     name: 'taskk-mcp-test-client',
@@ -60,12 +56,17 @@ async function main() {
     arguments: {},
   })
 
-  const listedTasks = parseTextResult(listedResult)
+  const listedPayload = parseTextResult(listedResult)
+  const listedTasks = listedPayload.tasks || listedPayload
 
   const completedResult = await client.callTool({
     name: 'complete_task',
     arguments: {
       id: createdTask.id,
+      outcome: 'Smoke test complete',
+      impact: 'Verified stdio MCP completion persistence',
+      project: 'QA',
+      tags: ['smoke', 'stdio'],
     },
   })
 
@@ -78,7 +79,7 @@ async function main() {
     },
   })
 
-  const deletedConfirmed = isToolError(getAfterCompleteResult)
+  const fetchedCompletedTask = parseTextResult(getAfterCompleteResult)
 
   console.log(
     JSON.stringify(
@@ -87,7 +88,9 @@ async function main() {
         createdTaskId: createdTask.id,
         listedTaskPresent: listedTasks.some((task) => task.id === createdTask.id),
         completedTaskId: completedTask.id,
-        deletedConfirmed,
+        completedStatus: completedTask.status,
+        completedAtPresent: Boolean(completedTask.completedAt),
+        preservedAfterComplete: fetchedCompletedTask.id === createdTask.id,
       },
       null,
       2,

@@ -58,19 +58,24 @@ async function main() {
     arguments: {},
   })
 
-  const listedTasks = parseTextResult(listedResult)
+  const listedPayload = parseTextResult(listedResult)
+  const listedTasks = listedPayload.tasks || listedPayload
 
   console.log('Completing task through HTTP MCP...')
   const completedResult = await client.callTool({
     name: 'complete_task',
     arguments: {
       id: createdTask.id,
+      outcome: 'Smoke test complete',
+      impact: 'Verified persistence',
+      project: 'QA',
+      tags: ['smoke', 'http'],
     },
   })
 
   const completedTask = parseTextResult(completedResult)
 
-  console.log('Checking deleted task through HTTP MCP...')
+  console.log('Checking preserved task through HTTP MCP...')
   const getAfterCompleteResult = await client.callTool({
     name: 'get_task',
     arguments: {
@@ -78,7 +83,7 @@ async function main() {
     },
   })
 
-  const deletedConfirmed = getAfterCompleteResult?.isError === true
+  const fetchedCompletedTask = parseTextResult(getAfterCompleteResult)
 
   console.log(
     JSON.stringify(
@@ -89,7 +94,9 @@ async function main() {
         createdTaskId: createdTask.id,
         listedTaskPresent: listedTasks.some((task) => task.id === createdTask.id),
         completedTaskId: completedTask.id,
-        deletedConfirmed,
+        completedStatus: completedTask.status,
+        completedAtPresent: Boolean(completedTask.completedAt),
+        preservedAfterComplete: fetchedCompletedTask.id === createdTask.id,
       },
       null,
       2,

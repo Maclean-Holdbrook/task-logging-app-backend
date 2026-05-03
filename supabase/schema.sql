@@ -9,9 +9,29 @@ create table if not exists public.tasks (
   priority text not null default 'medium',
   category text default 'General',
   due_date timestamptz,
+  completed_at timestamptz,
+  outcome text,
+  impact text,
+  project text,
+  client text,
+  tags text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.tasks add column if not exists completed_at timestamptz;
+alter table public.tasks add column if not exists outcome text;
+alter table public.tasks add column if not exists impact text;
+alter table public.tasks add column if not exists project text;
+alter table public.tasks add column if not exists client text;
+alter table public.tasks add column if not exists tags text[] not null default '{}';
+
+create index if not exists tasks_status_idx on public.tasks (status);
+create index if not exists tasks_created_at_idx on public.tasks (created_at desc);
+create index if not exists tasks_completed_at_idx on public.tasks (completed_at desc);
+create index if not exists tasks_project_idx on public.tasks (project);
+create index if not exists tasks_client_idx on public.tasks (client);
+create index if not exists tasks_tags_gin_idx on public.tasks using gin (tags);
 
 alter table public.tasks enable row level security;
 

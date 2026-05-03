@@ -1,12 +1,27 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import {
+  completeTask,
   createTask,
   deleteTask,
   getTaskById,
   listTasks,
   updateTask,
 } from '../services/taskService.js'
+
+const taskStatusSchema = z.enum(['pending', 'in_progress', 'completed', 'archived'])
+const taskPrioritySchema = z.enum(['low', 'medium', 'high'])
+const taskDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
+  message: 'Expected a valid date string.',
+})
+const completionFieldsSchema = {
+  completedAt: taskDateSchema.optional(),
+  outcome: z.string().max(400).optional(),
+  impact: z.string().max(400).optional(),
+  project: z.string().max(120).optional(),
+  client: z.string().max(120).optional(),
+  tags: z.array(z.string().min(1).max(40)).max(20).optional(),
+}
 
 function asTextContent(payload) {
   return {
@@ -22,13 +37,33 @@ function asTextContent(payload) {
 function createTaskMcpServer() {
   const server = new McpServer({
     name: 'taskk-mcp',
-    version: '0.2.0',
+    version: '0.3.0',
   })
 
-  server.tool('list_tasks', 'List all task records.', {}, async () => {
-    const tasks = await listTasks()
-    return asTextContent(tasks)
-  })
+  server.tool(
+    'list_tasks',
+    'List task records with optional date filters, pagination, and sorting.',
+    {
+      startDate: taskDateSchema.optional(),
+      endDate: taskDateSchema.optional(),
+      dateField: z.enum(['createdAt', 'updatedAt', 'dueDate', 'completedAt']).optional(),
+      status: z.union([taskStatusSchema, z.array(taskStatusSchema)]).optional(),
+      priority: z.union([taskPrioritySchema, z.array(taskPrioritySchema)]).optional(),
+      category: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+      project: z.string().optional(),
+      client: z.string().optional(),
+      tags: z.union([z.string().min(1), z.array(z.string().min(1))]).optional(),
+      search: z.string().optional(),
+      sortBy: z.enum(['createdAt', 'updatedAt', 'dueDate', 'completedAt', 'priority', 'status', 'title']).optional(),
+      sortOrder: z.enum(['asc', 'desc']).optional(),
+      page: z.number().int().min(1).optional(),
+      pageSize: z.number().int().min(1).max(100).optional(),
+    },
+    async (filters) => {
+      const result = await listTasks(filters)
+      return asTextContent(result)
+    },
+  )
 
   server.tool(
     'get_task',
@@ -48,10 +83,11 @@ function createTaskMcpServer() {
     {
       title: z.string().min(1),
       description: z.string().optional(),
-      status: z.enum(['pending', 'in_progress', 'completed', 'archived']).optional(),
-      priority: z.enum(['low', 'medium', 'high']).optional(),
+      status: taskStatusSchema.optional(),
+      priority: taskPrioritySchema.optional(),
       category: z.string().optional(),
-      dueDate: z.string().optional(),
+      dueDate: taskDateSchema.optional(),
+      ...completionFieldsSchema,
       userId: z.string().uuid().optional(),
     },
     async (input) => {
@@ -62,6 +98,12 @@ function createTaskMcpServer() {
         priority: input.priority || 'medium',
         category: input.category || 'General',
         dueDate: input.dueDate || '',
+        completedAt: input.completedAt,
+        outcome: input.outcome,
+        impact: input.impact,
+        project: input.project,
+        client: input.client,
+        tags: input.tags,
         userId: input.userId,
       })
 
@@ -76,10 +118,11 @@ function createTaskMcpServer() {
       id: z.string().uuid(),
       title: z.string().min(1).optional(),
       description: z.string().optional(),
-      status: z.enum(['pending', 'in_progress', 'completed', 'archived']).optional(),
-      priority: z.enum(['low', 'medium', 'high']).optional(),
+      status: taskStatusSchema.optional(),
+      priority: taskPrioritySchema.optional(),
       category: z.string().optional(),
-      dueDate: z.string().optional(),
+      dueDate: taskDateSchema.optional(),
+      ...completionFieldsSchema,
     },
     async ({ id, ...updates }) => {
       const task = await updateTask(id, updates)
@@ -101,13 +144,13 @@ function createTaskMcpServer() {
 
   server.tool(
     'complete_task',
-    'Complete a task and remove it from the database.',
+    'Complete a task and preserve it in the database with completion metadata.',
     {
       id: z.string().uuid(),
+      ...completionFieldsSchema,
     },
-    async ({ id }) => {
-      const task = await getTaskById(id)
-      await deleteTask(id)
+    async ({ id, ...completion }) => {
+      const task = await completeTask(id, completion)
       return asTextContent(task)
     },
   )
