@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-const taskStatusEnum = z.enum(['pending', 'in_progress', 'completed', 'archived'])
-const taskPriorityEnum = z.enum(['low', 'medium', 'high'])
+const taskStatusEnum = z.string().trim().min(1).max(40)
+const taskPriorityEnum = z.string().trim().min(1).max(40)
 
 const taskBaseSchema = z.object({
   title: z.string().trim().min(1).max(120),
