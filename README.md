@@ -23,8 +23,10 @@ Copy `.env.example` to `.env` and fill in:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `MCP_AUTH_TOKEN`
 
 `FRONTEND_ORIGIN` can be a comma-separated list of allowed frontend origins.
+`MCP_AUTH_TOKEN` should be a long random secret used only by MCP clients. In production, `/mcp` returns `401` unless this token is configured and sent as `Authorization: Bearer <token>`.
 
 ## Initial API
 

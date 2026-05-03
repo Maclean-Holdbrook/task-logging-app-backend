@@ -2,6 +2,7 @@ import cors from 'cors'
 import express from 'express'
 import { env } from './config/env.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import { requireMcpAuth } from './middleware/mcpAuth.js'
 import { healthRouter } from './routes/healthRoutes.js'
 import { mcpRouter } from './routes/mcpRoutes.js'
 import { taskRouter } from './routes/taskRoutes.js'
@@ -44,7 +45,7 @@ app.use(express.json())
 
 app.use('/api/health', healthRouter)
 app.use('/api/tasks', taskRouter)
-app.use('/mcp', mcpRouter)
+app.use('/mcp', requireMcpAuth, mcpRouter)
 
 app.use(notFoundHandler)
 app.use(errorHandler)

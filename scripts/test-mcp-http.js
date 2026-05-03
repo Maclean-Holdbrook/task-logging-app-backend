@@ -12,14 +12,24 @@ function parseTextResult(result) {
 }
 
 async function main() {
+  const endpoint = process.env.MCP_HTTP_URL || 'http://127.0.0.1:4000/mcp'
+  const authToken = process.env.MCP_AUTH_TOKEN
   const client = new Client({
     name: 'taskk-mcp-http-test-client',
     version: '0.1.0',
   })
 
-  const transport = new StreamableHTTPClientTransport(
-    new URL('http://127.0.0.1:4000/mcp'),
-  )
+  const requestInit = authToken
+    ? {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
+    : undefined
+
+  const transport = new StreamableHTTPClientTransport(new URL(endpoint), {
+    requestInit,
+  })
 
   console.log('Connecting HTTP MCP client...')
   await client.connect(transport)
@@ -74,7 +84,7 @@ async function main() {
     JSON.stringify(
       {
         transport: 'http',
-        endpoint: 'http://127.0.0.1:4000/mcp',
+        endpoint,
         tools: toolNames,
         createdTaskId: createdTask.id,
         listedTaskPresent: listedTasks.some((task) => task.id === createdTask.id),
